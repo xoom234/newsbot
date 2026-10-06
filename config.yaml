@@ -1,0 +1,187 @@
+timezone: Europe/Moscow
+
+# delivery:
+#   spread   — сбор раз в день в collect_time, публикация равномерно в течение publish_window
+#   realtime — каждая новость через send_delay_minutes после публикации (только локальный запуск)
+#   digest   — раз в день одной подборкой в digest_time (только локальный запуск)
+# На Vercel расписание задаётся в vercel.json (время там в UTC): при изменении
+# collect_time / publish_window поправь и его.
+delivery: spread
+collect_time: "08:00"
+publish_window: "09:00-22:00"
+send_delay_minutes: 5
+digest_time: "09:00"
+collect_interval_minutes: 2    # realtime/digest: как часто обходить сайты
+
+max_age_hours: 26              # новости старше этого (по дате из RSS) не присылаются
+lead_max_chars: 600            # длина пересказа под заголовком
+link_preview: false
+translate_to: ru               # язык перевода; провайдер задаётся в .env (TRANSLATOR)
+
+# Фильтр по теме для источников с `filter: true`.
+# Новость проходит, если ключевое слово есть в заголовке или встречается в тексте
+# не меньше topic_min_text_hits раз. `*` в конце — любое окончание.
+# Слова целиком ЗАГЛАВНЫМИ (AI, ML, MCP) учитывают регистр, остальные — нет.
+topic_min_text_hits: 2
+topic_keywords:
+  # общее
+  - AI
+  - A.I.
+  - AGI
+  - artificial intelligence
+  - machine learning
+  - ML
+  - deep learning
+  - neural net*
+  - LLM*
+  - language model*
+  - foundation model*
+  - reasoning model*
+  - frontier model*
+  - generative
+  - GenAI
+  - chatbot*
+  - multimodal
+  - transformer*
+  - diffusion model*
+  - pretrain*
+  - pre-train*
+  - backprop*
+  - open-weight*
+  - open weight*
+  - model weights
+  - training data
+  - embedding*
+  - fine-tun*
+  - inference
+  - prompt
+  - prompts
+  - prompting
+  - prompt engineering
+  - prompt injection
+  - RAG
+  - vector database*
+  - agentic
+  - AI agent*
+  - coding agent*
+  - vibe coding
+  - vibe-cod*
+  - vibecod*
+  - MCP
+  - Model Context Protocol
+  - GPU*
+  - TPU*
+  # компании и продукты
+  - OpenAI
+  - ChatGPT
+  - GPT*
+  - Codex
+  - Sora
+  - Anthropic
+  - Claude
+  - Opus
+  - Sonnet
+  - Gemini
+  - Gemma
+  - DeepMind
+  - Google AI
+  - Llama
+  - Meta AI
+  - Mistral
+  - DeepSeek
+  - Qwen
+  - Kimi
+  - Grok
+  - xAI
+  - Copilot
+  - Cursor
+  - Windsurf
+  - Perplexity
+  - Hugging Face
+  - HuggingFace
+  - Ollama
+  - llama.cpp
+  - vLLM
+  - PyTorch
+  - TensorFlow
+  - JAX
+  - LangChain
+  - Stable Diffusion
+  - Midjourney
+  - NVIDIA
+  # по-русски
+  - ИИ
+  - искусственн* интеллект*
+  - нейросет*
+  - нейронн* сет*
+  - машинн* обучен*
+  - языков* модел*
+  - вайбкодинг*
+  - вибекодирован*
+
+# type:
+#   auto — сначала пробует url как RSS, потом ищет ссылку на RSS на странице,
+#          потом использует link_selector (default)
+#   rss  — url указывает прямо на RSS/Atom
+#   html — только link_selector: CSS-селектор ссылок на статьи на странице-ленте
+# fetch_article: false — брать текст из описания в RSS, а не со страницы статьи
+#
+# При первом обходе нового источника бот только запоминает уже опубликованное,
+# присылать начинает то, что вышло после этого.
+sources:
+  - name: OpenAI Developers
+    url: https://developers.openai.com/rss.xml
+    type: rss
+    emoji: "🟢"
+
+  - name: Claude Platform Release Notes
+    url: https://platform.claude.com/docs/en/release-notes/feed.xml
+    type: rss
+    emoji: "🟠"
+    fetch_article: false
+
+  - name: Anthropic Engineering
+    url: https://www.anthropic.com/engineering
+    type: html
+    link_selector: 'a[href^="/engineering/"]'
+    emoji: "🛠"
+
+  - name: MCP Blog
+    url: https://blog.modelcontextprotocol.io/index.xml
+    type: rss
+    emoji: "🔌"
+
+  - name: Google Developers Blog
+    url: https://developers.googleblog.com/rss/
+    type: rss
+    emoji: "🔷"
+    filter: true
+
+  - name: GitHub Blog
+    url: https://github.blog/feed/
+    type: rss
+    emoji: "🐙"
+    filter: true
+
+  - name: Hugging Face Blog
+    url: https://huggingface.co/blog/feed.xml
+    type: rss
+    emoji: "🤗"
+
+  - name: Simon Willison
+    url: https://simonwillison.net/atom/everything/
+    type: rss
+    emoji: "✍️"
+    filter: true
+
+  - name: Lil'Log
+    url: https://lilianweng.github.io/index.xml
+    type: rss
+    emoji: "📚"
+
+  # все посты HN, набравшие 100+ очков (не только текущая первая страница)
+  - name: Hacker News
+    url: https://hnrss.org/newest?points=100&count=100
+    type: rss
+    emoji: "🟧"
+    filter: true

@@ -19,9 +19,16 @@ SEND_DELAY = 1.1
 
 
 def spread_times(
-    count: int, now: datetime, tz: ZoneInfo, window: Tuple[Tuple[int, int], Tuple[int, int]]
+    count: int,
+    now: datetime,
+    tz: ZoneInfo,
+    window: Tuple[Tuple[int, int], Tuple[int, int]],
+    batch_min: int = 1,
+    batch_max: int = 1,
 ) -> List[datetime]:
-    """Evenly distributes count moments within today's window (or tomorrow's, if today's is over)."""
+    """Groups count items into batches of batch_min..batch_max and spreads the batches evenly
+    within today's window (or tomorrow's, if today's is over), at most one batch per hour.
+    Returns one moment per item."""
     (sh, sm), (eh, em) = window
     local = now.astimezone(tz)
     start = local.replace(hour=sh, minute=sm, second=0, microsecond=0)
@@ -29,8 +36,16 @@ def spread_times(
     if local >= end:
         start, end = start + timedelta(days=1), end + timedelta(days=1)
     start = max(start, local)
-    step = (end - start) / max(count, 1)
-    return [start + step * i for i in range(count)]
+
+    hours = max(1, int((end - start) / timedelta(hours=1)))
+    batches = -(-count // batch_max)  # ceil
+    if batch_min > 1:
+        batches = min(batches, max(1, count // batch_min))
+    # more items than hourly slots can hold at batch_max: batches grow instead of dropping news
+    batches = max(1, min(batches, hours))
+
+    step = (end - start) / batches
+    return [start + step * (i * batches // max(count, 1)) for i in range(count)]
 
 
 class DigestSender:
@@ -45,7 +60,11 @@ class DigestSender:
         ids = await self.storage.unscheduled_ids()
         if ids:
             times = spread_times(
-                len(ids), datetime.now(timezone.utc), ZoneInfo(self.config.timezone), self.config.publish_window_hm
+                len(ids),
+                datetime.now(timezone.utc),
+                ZoneInfo(self.config.timezone),
+                self.config.publish_window_hm,
+                *self.config.batch_range,
             )
             await self.storage.set_schedule(ids, times)
             log.info("Scheduled %d items from %s to %s", len(ids), times[0], times[-1])

@@ -9,6 +9,7 @@ timezone: Europe/Moscow
 delivery: spread
 collect_time: "08:00"
 publish_window: "09:00-22:00"
+batch_size: "5-10"             # spread: сколько новостей в одной пачке (не больше одной пачки в час)
 send_delay_minutes: 5
 digest_time: "09:00"
 collect_interval_minutes: 2    # realtime/digest: как часто обходить сайты

@@ -33,6 +33,7 @@ class Config:
     delivery: str = "spread"
     collect_time: str = "08:00"
     publish_window: str = "09:00-22:00"
+    batch_size: str = "5-10"
     send_delay_minutes: int = 5
     digest_time: str = "09:00"
     collect_interval_minutes: int = 2
@@ -55,6 +56,11 @@ class Config:
     @property
     def collect_hm(self) -> Tuple[int, int]:
         return parse_hm(self.collect_time)
+
+    @property
+    def batch_range(self) -> Tuple[int, int]:
+        low, _, high = str(self.batch_size).partition("-")
+        return int(low), int(high or low)
 
     @property
     def publish_window_hm(self) -> Tuple[Tuple[int, int], Tuple[int, int]]:

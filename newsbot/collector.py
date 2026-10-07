@@ -142,11 +142,14 @@ class Collector:
         log.info("Collected %d new items", added)
         return added
 
-    async def _get(self, client: httpx.AsyncClient, url: str, attempts: int = 3) -> httpx.Response:
+    async def _get(
+        self, client: httpx.AsyncClient, url: str, source: Optional[Source] = None, attempts: int = 3
+    ) -> httpx.Response:
+        headers = {"User-Agent": source.user_agent} if source and source.user_agent else None
         for attempt in range(1, attempts + 1):
             try:
                 async with self.semaphore:
-                    resp = await client.get(url)
+                    resp = await client.get(url, headers=headers)
                 if resp.status_code < 500 or attempt == attempts:
                     resp.raise_for_status()
                     return resp
@@ -158,7 +161,7 @@ class Collector:
 
     async def _list_entries(self, client: httpx.AsyncClient, source: Source) -> Tuple[List[RawEntry], bool]:
         """Returns (entries, from_feed)."""
-        resp = await self._get(client, source.url)
+        resp = await self._get(client, source.url, source)
 
         if source.type in ("auto", "rss"):
             entries = parse_feed(resp.content)
@@ -170,7 +173,7 @@ class Collector:
             if feed_url:
                 log.info("%s: discovered feed %s", source.name, feed_url)
                 source.url, source.type = feed_url, "rss"
-                return parse_feed((await self._get(client, feed_url)).content), True
+                return parse_feed((await self._get(client, feed_url, source)).content), True
 
         if source.link_selector:
             return parse_listing(resp.text, str(resp.url), source.link_selector), False
@@ -219,7 +222,7 @@ class Collector:
             item.lead = truncate(summary, limit)
         else:
             try:
-                resp = await self._get(client, item.url)
+                resp = await self._get(client, item.url, source)
                 title, lead = await asyncio.to_thread(extract_article, resp.text, item.title, limit)
                 if not (from_feed and item.title):
                     item.title = title

@@ -19,6 +19,8 @@ class Source:
     fetch_article: bool = True
     # true: only items matching topic_keywords are delivered
     filter: bool = False
+    # some sites reject browser-like clients and only answer plain HTTP clients
+    user_agent: Optional[str] = None
 
 
 @dataclass

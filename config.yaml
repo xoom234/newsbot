@@ -180,6 +180,59 @@ sources:
     type: rss
     emoji: "📚"
 
+  # --- блоги ИИ-компаний ---
+  - name: OpenAI News
+    url: https://openai.com/news/rss.xml
+    type: rss
+    emoji: "🟢"
+
+  - name: Google DeepMind
+    url: https://deepmind.google/blog/rss.xml
+    type: rss
+    emoji: "🔵"
+
+  - name: Google AI Blog
+    url: https://blog.google/technology/ai/rss/
+    type: rss
+    emoji: "🔷"
+
+  # сайт отвечает 400 браузерным клиентам, поэтому простой User-Agent
+  - name: Meta AI
+    url: https://ai.meta.com/blog/
+    type: html
+    link_selector: 'a[href^="https://ai.meta.com/blog/"]'
+    user_agent: "curl/8.7.1"
+    emoji: "♾️"
+
+  - name: Mistral AI
+    url: https://mistral.ai/rss.xml
+    type: rss
+    emoji: "🌬"
+
+  - name: NVIDIA Blog
+    url: https://blogs.nvidia.com/feed/
+    type: rss
+    emoji: "🟩"
+    filter: true
+
+  - name: NVIDIA Developer
+    url: https://developer.nvidia.com/blog/feed
+    type: rss
+    emoji: "🟩"
+    filter: true
+
+  - name: Microsoft AI
+    url: https://microsoft.ai/news/
+    type: html
+    link_selector: 'a[href^="https://microsoft.ai/news/"]'
+    emoji: "🪟"
+
+  - name: Microsoft Research
+    url: https://www.microsoft.com/en-us/research/feed/
+    type: rss
+    emoji: "🪟"
+    filter: true
+
   # все посты HN, набравшие 100+ очков (не только текущая первая страница)
   - name: Hacker News
     url: https://hnrss.org/newest?points=100&count=100

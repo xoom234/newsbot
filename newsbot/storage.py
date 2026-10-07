@@ -17,7 +17,6 @@ CREATE TABLE IF NOT EXISTS news (
     collected_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     sent_at TIMESTAMPTZ
 );
-ALTER TABLE news ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_news_pending ON news (source, collected_at) WHERE sent_at IS NULL;
 """
 
@@ -91,29 +90,16 @@ class Storage:
         )
         return [NewsItem(**dict(r)) for r in rows]
 
-    async def scheduled_due(self) -> List[NewsItem]:
+    async def oldest_pending(self, limit: int) -> List[NewsItem]:
         rows = await self.pool.fetch(
-            "SELECT id, url, source, emoji, title, lead, published_at FROM news "
-            "WHERE sent_at IS NULL AND scheduled_at <= now() ORDER BY scheduled_at"
+            "SELECT id, url, source, emoji, title, lead, published_at FROM news WHERE sent_at IS NULL "
+            "ORDER BY COALESCE(published_at, collected_at) LIMIT $1",
+            limit,
         )
         return [NewsItem(**dict(r)) for r in rows]
 
-    async def unscheduled_ids(self) -> List[int]:
-        rows = await self.pool.fetch(
-            "SELECT id FROM news WHERE sent_at IS NULL AND scheduled_at IS NULL "
-            "ORDER BY COALESCE(published_at, collected_at)"
-        )
-        return [r["id"] for r in rows]
-
-    async def set_schedule(self, ids: List[int], times: List[datetime]) -> None:
-        await self.pool.executemany(
-            "UPDATE news SET scheduled_at = $2 WHERE id = $1", list(zip(ids, times))
-        )
-
-    async def next_scheduled(self) -> Optional[datetime]:
-        return await self.pool.fetchval(
-            "SELECT min(scheduled_at) FROM news WHERE sent_at IS NULL AND scheduled_at > now()"
-        )
+    async def pending_total(self) -> int:
+        return await self.pool.fetchval("SELECT COUNT(*) FROM news WHERE sent_at IS NULL")
 
     async def pending_counts(self) -> Dict[str, int]:
         rows = await self.pool.fetch(

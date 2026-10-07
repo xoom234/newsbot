@@ -42,9 +42,10 @@ async def main() -> None:
             await message.answer(f"Новых новостей: {await app.collect()}")
 
         scheduler = AsyncIOScheduler(timezone=config.timezone)
-        if config.delivery == "spread":
-            hour, minute = config.collect_hm
-            scheduler.add_job(app.collect, "cron", hour=hour, minute=minute, misfire_grace_time=3600)
+        if config.delivery == "batches":
+            scheduler.add_job(
+                app.run_hourly, "cron", minute=0, max_instances=1, coalesce=True, misfire_grace_time=3600
+            )
         else:
             scheduler.add_job(
                 app.collect,
@@ -62,7 +63,7 @@ async def main() -> None:
             scheduler.add_job(
                 app.sender.send, "cron", hour=hour, minute=minute, args=[config.chat_id], misfire_grace_time=3600
             )
-        else:
+        elif config.delivery == "realtime":
             scheduler.add_job(app.publish, "interval", minutes=1, max_instances=1, coalesce=True)
         scheduler.start()
 

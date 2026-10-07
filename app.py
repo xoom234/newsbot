@@ -37,6 +37,14 @@ async def collect(request: Request) -> Response:
     return JSONResponse({"added": added, "sent": sent})
 
 
+async def run(request: Request) -> Response:
+    if not _cron_authorized(request):
+        return Response(status_code=401)
+    async with Services(config) as app:
+        result = await app.run_hourly()
+    return JSONResponse(result)
+
+
 async def publish(request: Request) -> Response:
     if not _cron_authorized(request):
         return Response(status_code=401)
@@ -71,8 +79,9 @@ app = Starlette(
         Route("/", health),
         Route("/api/collect", collect, methods=["GET", "POST"]),
         Route("/api/publish", publish, methods=["GET", "POST"]),
-        # Vercel merges cron jobs with identical paths, so every daily run gets its own path
-        Route("/api/publish/{slot}", publish, methods=["GET", "POST"]),
+        # hourly collect + publish; Vercel merges cron jobs with identical paths, so every
+        # daily run gets its own path
+        Route("/api/run/{slot}", run, methods=["GET", "POST"]),
         Route("/api/telegram", telegram, methods=["POST"]),
     ]
 )

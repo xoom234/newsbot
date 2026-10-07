@@ -1,15 +1,15 @@
 timezone: Europe/Moscow
 
 # delivery:
-#   spread   — сбор раз в день в collect_time, публикация равномерно в течение publish_window
+#   batches  — каждый час сбор новостей и отправка пачкой по batch_size в течение publish_window:
+#              пока в очереди меньше минимума, новости копятся; последний запуск дня отправляет всё
 #   realtime — каждая новость через send_delay_minutes после публикации (только локальный запуск)
 #   digest   — раз в день одной подборкой в digest_time (только локальный запуск)
-# На Vercel расписание задаётся в vercel.json (время там в UTC): при изменении
-# collect_time / publish_window поправь и его.
-delivery: spread
-collect_time: "08:00"
+# На Vercel часовые запуски задаются в vercel.json (время там в UTC): при изменении
+# publish_window поправь и его.
+delivery: batches
 publish_window: "09:00-22:00"
-batch_size: "5-10"             # spread: сколько новостей в одной пачке (не больше одной пачки в час)
+batch_size: "5-10"
 send_delay_minutes: 5
 digest_time: "09:00"
 collect_interval_minutes: 2    # realtime/digest: как часто обходить сайты

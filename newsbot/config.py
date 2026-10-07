@@ -29,11 +29,10 @@ class Config:
     chat_id: Optional[int]
     database_url: str
     timezone: str = "Europe/Moscow"
-    # spread: collected once a day at collect_time, published evenly within publish_window
+    # batches: collected every hour, sent in batches of batch_size within publish_window
     # realtime: every item is sent send_delay_minutes after publication
     # digest: once a day at digest_time
-    delivery: str = "spread"
-    collect_time: str = "08:00"
+    delivery: str = "batches"
     publish_window: str = "09:00-22:00"
     batch_size: str = "5-10"
     send_delay_minutes: int = 5
@@ -54,10 +53,6 @@ class Config:
     @property
     def digest_hm(self) -> Tuple[int, int]:
         return parse_hm(self.digest_time)
-
-    @property
-    def collect_hm(self) -> Tuple[int, int]:
-        return parse_hm(self.collect_time)
 
     @property
     def batch_range(self) -> Tuple[int, int]:

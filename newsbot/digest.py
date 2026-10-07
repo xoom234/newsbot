@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import List, Tuple
 from zoneinfo import ZoneInfo
 
@@ -18,34 +18,28 @@ log = logging.getLogger(__name__)
 SEND_DELAY = 1.1
 
 
-def spread_times(
-    count: int,
+def batch_size(
+    pending: int,
     now: datetime,
-    tz: ZoneInfo,
     window: Tuple[Tuple[int, int], Tuple[int, int]],
-    batch_min: int = 1,
-    batch_max: int = 1,
-) -> List[datetime]:
-    """Groups count items into batches of batch_min..batch_max and spreads the batches evenly
-    within today's window (or tomorrow's, if today's is over), at most one batch per hour.
-    Returns one moment per item."""
+    batch_min: int,
+    batch_max: int,
+) -> int:
+    """How many items an hourly run sends; 0 means keep accumulating until batch_min is reached.
+    The last run of the day flushes everything; a backlog larger than the remaining runs can
+    hold at batch_max makes batches bigger instead of carrying news over to tomorrow."""
     (sh, sm), (eh, em) = window
-    local = now.astimezone(tz)
-    start = local.replace(hour=sh, minute=sm, second=0, microsecond=0)
-    end = local.replace(hour=eh, minute=em, second=0, microsecond=0)
-    if local >= end:
-        start, end = start + timedelta(days=1), end + timedelta(days=1)
-    start = max(start, local)
-
-    hours = max(1, int((end - start) / timedelta(hours=1)))
-    batches = -(-count // batch_max)  # ceil
-    if batch_min > 1:
-        batches = min(batches, max(1, count // batch_min))
-    # more items than hourly slots can hold at batch_max: batches grow instead of dropping news
-    batches = max(1, min(batches, hours))
-
-    step = (end - start) / batches
-    return [start + step * (i * batches // max(count, 1)) for i in range(count)]
+    start = now.replace(hour=sh, minute=sm, second=0, microsecond=0)
+    end = now.replace(hour=eh, minute=em, second=0, microsecond=0)
+    # Vercel Hobby cron fires anywhere within its hour, so the last run may come after the window end
+    if pending == 0 or not (start <= now < end + timedelta(hours=1)):
+        return 0
+    runs_left = -(-(end - now) // timedelta(hours=1))  # ceil, this run included
+    if runs_left <= 1:
+        return pending
+    if pending < batch_min:
+        return 0
+    return max(batch_max, -(-pending // runs_left))
 
 
 class DigestSender:
@@ -54,21 +48,6 @@ class DigestSender:
         self.config = config
         self.storage = storage
         self.lock = asyncio.Lock()
-
-    async def schedule(self) -> int:
-        """spread mode: assigns publication times to newly collected items."""
-        ids = await self.storage.unscheduled_ids()
-        if ids:
-            times = spread_times(
-                len(ids),
-                datetime.now(timezone.utc),
-                ZoneInfo(self.config.timezone),
-                self.config.publish_window_hm,
-                *self.config.batch_range,
-            )
-            await self.storage.set_schedule(ids, times)
-            log.info("Scheduled %d items from %s to %s", len(ids), times[0], times[-1])
-        return len(ids)
 
     async def _send(self, chat_id: int, text: str) -> None:
         preview = LinkPreviewOptions(is_disabled=not self.config.link_preview)
@@ -96,12 +75,16 @@ class DigestSender:
             return len(items)
 
     async def send_due(self, chat_id: int) -> int:
-        """Sends items whose time has come: by schedule (spread) or by publication delay (realtime)."""
+        """Sends items whose time has come: a batch (batches) or by publication delay (realtime)."""
         if self.lock.locked():
             return 0
         async with self.lock:
-            if self.config.delivery == "spread":
-                items = await self.storage.scheduled_due()
+            if self.config.delivery == "batches":
+                now = datetime.now(ZoneInfo(self.config.timezone))
+                size = batch_size(
+                    await self.storage.pending_total(), now, self.config.publish_window_hm, *self.config.batch_range
+                )
+                items = await self.storage.oldest_pending(size) if size else []
             else:
                 items = await self.storage.due(self.config.send_delay_minutes)
             await self._send_items(chat_id, items)

@@ -1,5 +1,3 @@
-from zoneinfo import ZoneInfo
-
 from aiogram import Bot
 
 from .collector import Collector
@@ -27,10 +25,11 @@ class Services:
         await self.storage.close()
 
     async def collect(self) -> int:
-        added = await self.collector.run()
-        if self.config.delivery == "spread":
-            await self.sender.schedule()
-        return added
+        return await self.collector.run()
+
+    async def run_hourly(self) -> dict:
+        added = await self.collect()
+        return {"added": added, "sent": await self.publish()}
 
     async def publish(self) -> int:
         if not self.config.chat_id:
@@ -41,8 +40,11 @@ class Services:
 
     def start_text(self, chat_id: int) -> str:
         c = self.config
-        if c.delivery == "spread":
-            schedule = f"Новости собираются раз в день и приходят в течение дня ({c.publish_window}, {c.timezone})."
+        if c.delivery == "batches":
+            schedule = (
+                f"Новости собираются каждый час и приходят пачками по {c.batch_size} "
+                f"({c.publish_window}, {c.timezone})."
+            )
         elif c.delivery == "realtime":
             schedule = f"Новости приходят через {c.send_delay_minutes} мин после публикации."
         else:
@@ -54,9 +56,4 @@ class Services:
         if not counts:
             return "Очередь пуста."
         lines = [f"{name}: {n}" for name, n in counts.items()]
-        text = "Ждут отправки:\n" + "\n".join(lines) + f"\n\nВсего: {sum(counts.values())}"
-        upcoming = await self.storage.next_scheduled()
-        if upcoming:
-            local = upcoming.astimezone(ZoneInfo(self.config.timezone))
-            text += f"\nСледующая: {local:%d.%m %H:%M}"
-        return text
+        return "Ждут отправки:\n" + "\n".join(lines) + f"\n\nВсего: {sum(counts.values())}"
